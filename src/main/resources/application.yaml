@@ -1,0 +1,67 @@
+# ==========================================
+# Relay (校园速达) - 核心配置文件
+# ==========================================
+
+
+#测试
+server:
+  port: 8080
+  servlet:
+    context-path: /api  # 加上这行，给所有的接口加一个统一的前缀
+# 1. Web 服务器配置
+ # 后端接口运行的端口号（默认8080）
+
+# 2. 数据库连接配置 (Spring Datasource)
+spring:
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 这里的 url 告诉程序：去本地3306端口找 relay 数据库，并且使用utf8字符集，时区设为东八区
+    url: jdbc:mysql://localhost:3306/relay?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USERNAME:root}
+    # 数据库密码从环境变量读取，勿在代码中硬编码。本地运行请设置 MYSQL_PASSWORD
+    password: ${MYSQL_PASSWORD:}
+
+# 3. MyBatis-Plus (数据库超级外挂) 配置
+mybatis-plus:
+  # 告诉它实体类存放在哪个包下面
+  type-aliases-package: com.spike.relay.entity
+  configuration:
+    # 开启驼峰命名自动映射 (比如把数据库里的 create_time 自动映射成 Java 里的 createTime)
+    map-underscore-to-camel-case: true
+    # 把后端偷偷执行的 SQL 语句打印在控制台，方便你 Debug 抓虫！
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      # 主键自增策略 (和你在 SQL 里写的 AUTO_INCREMENT 匹配)
+      id-type: auto
+      # 逻辑删除字段 (1代表已删除，0代表未删除。调用删除接口时不会真删数据，只是改状态，防止误删)
+      logic-delete-field: is_deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+
+# AI 大模型配置
+ai:
+  # API Key 从环境变量读取，勿硬编码。本地运行请设置 DEEPSEEK_API_KEY
+  api-key: ${DEEPSEEK_API_KEY:}
+  url: https://api.deepseek.com/chat/completions
+  model: deepseek-chat
+
+# 文件存储配置（v1.0 本地磁盘）
+storage:
+  local:
+    # 文件落盘目录（相对运行目录，会自动创建）
+    dir: ./uploads
+    # 对外访问前缀，需与 context-path(/api) + 资源映射(/uploads) 一致
+    url-prefix: http://localhost:8080/api/uploads
+
+# 运营后台口令（提现打款处理用）。从环境变量读取，勿硬编码。本地运行请设置 ADMIN_TOKEN
+admin:
+  token: ${ADMIN_TOKEN:}

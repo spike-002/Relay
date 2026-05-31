@@ -1,0 +1,80 @@
+@publisher_token = init
+@rider_token = init
+@order_id = 0
+
+### ========== 用户认证 ==========
+
+### ##0 发单人登录 (模拟微信登录，获取token)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "code": "publisher001"
+}
+
+> {%
+    // 关键点：去运行窗口看一下，Rikki 返回的到底是 data 还是 token？
+    // 如果返回 {"code":200, "data":"eyJ..."}，这里就写 response.body.data
+    client.global.set("publisher_token", response.body.data);
+%}
+
+### ##0.1 骑手登录 (模拟微信登录，获取token)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "code": "rider001"
+}
+
+> {%
+    client.global.set("rider_token", response.body.token);
+%}
+
+### ========== 完整链路测试 ==========
+### 先依次执行上面两个登录，token 会自动保存到变量中
+
+### ##1 AI 智能发单 (用发单人token)
+POST http://localhost:8080/api/order/ai-publish
+Content-Type: application/json
+Authorization: Bearer {{publisher_token}}
+
+{
+  "text": "帮我从菜鸟驿站A12取个快递，送到6栋512，手机号13800138000，跑腿费5块"
+}
+
+> {%
+    client.global.set("order_id", response.body.data.id);
+%}
+
+### ##2 查看跑腿大厅 (任意已登录用户)
+GET http://localhost:8080/api/order/list/hall
+Authorization: Bearer {{rider_token}}
+
+### ##3 骑手抢单 (status: 0 -> 1 待取货)
+POST http://localhost:8080/api/order/accept?orderId={{order_id}}
+Authorization: Bearer {{rider_token}}
+
+### ##4 骑手取件 (status: 1 -> 2 配送中)
+POST http://localhost:8080/api/order/take
+Content-Type: application/json
+Authorization: Bearer {{rider_token}}
+
+{
+  "orderId": "{{order_id}}",
+  "pickupPhotoUrl": "https://img.relay.com/pickup/20250101_001.jpg"
+}
+
+### ##5 骑手确认送达 (status: 2 -> 3 待确认)
+POST http://localhost:8080/api/order/deliver
+Content-Type: application/json
+Authorization: Bearer {{rider_token}}
+
+{
+  "orderId": "{{order_id}}",
+  "deliveryPhotoUrl": "https://img.relay.com/deliver/20250101_001.jpg"
+}
+
+### ##6 用户确认收货 (status: 3 -> 4 已完成)
+POST http://localhost:8080/api/order/confirm?orderId={{order_id}}
+Authorization: Bearer {{publisher_token}}
+
